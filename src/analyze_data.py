@@ -1,22 +1,4 @@
-import pandas as pd
-import json
-from datetime import date, datetime
-
-# 1. Read the JSON file using standard Python
-with open('../data/raw/lahore_aqi_raw.json', 'r') as f:
-    raw_data = json.load(f)
-
-# 2. Extract ONLY the 'hourly' key where the actual data arrays live
-df = pd.DataFrame(raw_data['hourly'])
-
-
-# Converting 'time' string to actual time object
-df['time'] = pd.to_datetime(df['time'])
-
-df['date'] = df['time'].dt.date
-df['time'] = df['time'].dt.time
-
-df.set_index(['date', 'time'], inplace=True)
+from datetime import date, datetime, time
 
 # Defining Meaning
 def get_aqi_meaning(aqi_value):
@@ -34,10 +16,11 @@ def get_aqi_meaning(aqi_value):
         return "Hazardous"
 
 # Get Current Status
-def get_todays_status():
-    today = date.today()
-    hour = datetime.now().hour
-    aqi, pm2_5, pm10 = df.loc[today].iloc[hour].round(2)[['us_aqi', 'pm2_5', 'pm10']]
+def get_todays_status(df):
+
+    row = df.iloc[-1]   # get the latest results
+
+    aqi, pm2_5, pm10 = row.round(2)[['us_aqi', 'pm2_5', 'pm10']]
 
     status = get_aqi_meaning(aqi)
   
@@ -46,30 +29,29 @@ def get_todays_status():
 
 
 # Get Historical Status
-def get_historical_status():
+def get_historical_status(df):
 
   past_aqi = [df.tail(24*i)['us_aqi'].mean().round(2) for i in [3, 7, 30]]
   last_week = df.iloc[-24*14:-24*7]['us_aqi'].mean().round(2)
 
   if past_aqi[1] > last_week :
-    quality = ((round(((past_aqi[1] - last_week) / past_aqi[1]) * 100, 2)), True)
+    quality = ((round(((past_aqi[1] - last_week) / past_aqi[1]) * 100, 2)), False)
   else :
-    quality = ((round(((last_week - past_aqi[1]) / last_week) * 100, 2)), False)
+    quality = ((round(((last_week - past_aqi[1]) / last_week) * 100, 2)), True)
 
   return [past_aqi, quality]
 
 # Pattern Insights
-def get_pattern_insights():
+def get_pattern_insights(df):
     """This function is gonna find the safest window and the worse window in the last week for Lahore"""
 
-    temp = df.tail(72)['us_aqi'].groupby('time').mean().sort_values()
+    temp = df.tail(24 * 7)['us_aqi'].groupby('time').mean().sort_values()
     lowest = temp.head(4)
     highest = temp.tail(4)
 
     # First converting the time to 12 Hour AM/PM format 
     lowest.index = [t.strftime('%I:%M %p') for t in lowest.index]
     highest.index = [t.strftime('%I:%M %p') for t in highest.index]
-    
-    return [lowest.index, highest.index]
-    
+
+    return [lowest, highest]
     
