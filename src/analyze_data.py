@@ -31,15 +31,18 @@ def get_todays_status(df):
 # Get Historical Status
 def get_historical_status(df):
 
-  past_aqi = [df.tail(24*i)['us_aqi'].mean().round(2) for i in [3, 7, 30]]
-  last_week = df.iloc[-24*14:-24*7]['us_aqi'].mean().round(2)
+    past_aqi = [df.tail(24*i)['us_aqi'].mean().round(2) for i in [3, 7, 30]]
+    last_week = df.iloc[-24*14:-24*7]['us_aqi'].mean().round(2)
 
-  if past_aqi[1] > last_week :
-    quality = ((round(((past_aqi[1] - last_week) / past_aqi[1]) * 100, 2)), False)
-  else :
-    quality = ((round(((last_week - past_aqi[1]) / last_week) * 100, 2)), True)
+    # WORSENED (AQI went Up)
+    if past_aqi[1] > last_week :
+        quality = ((round(((past_aqi[1] - last_week) / last_week) * 100, 2)), False)
 
-  return [past_aqi, quality]
+    # IMPROVED (AQI went Down)
+    else :
+        quality = ((round(((last_week - past_aqi[1]) / last_week) * 100, 2)), True)
+
+    return [past_aqi, quality]
 
 # Pattern Insights
 def get_pattern_insights(df):
