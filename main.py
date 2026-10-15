@@ -3,7 +3,7 @@ import requests
 import argparse
 import json
 import pandas as pd
-from datetime import datetime, date
+from datetime import datetime
 from pathlib import Path
 import sys
 import os
@@ -27,7 +27,15 @@ class Color:
     HEADING = "\033[1m"
 
 def status_color(status):
-    """Pick a color based on AQI category."""
+    """Select a corresponding ANSI terminal color code based on the AQI health category.
+
+    Args:
+        status (str): Qualitative health status string (e.g., 'Good', 'Moderate').
+
+    Returns:
+        str: ANSI color escape code string.
+    """
+    
     return {
         "Good": Color.GREEN,
         "Moderate": Color.YELLOW,
@@ -39,8 +47,16 @@ def status_color(status):
 
 # ---------- Time Window Helpers ----------
 def group_into_ranges(hours):
-    """Group sorted hour numbers into consecutive ranges.
-    Handles the midnight wrap (e.g., 23 and 0 are consecutive)."""
+    """Group a list or set of sorted hour numbers into consecutive integer ranges,
+    handling midnight wraps (e.g., 23, 0, 1 are treated as continuous).
+
+    Args:
+        hours (list or set): Collection of integer hour values ranging from 0 to 23.
+
+    Returns:
+        list of tuples: Consecutive start and end hour ranges.
+    """
+
     hours = sorted(set(hours))     # set removes any duplicate
     ranges = []
     start = prev = hours[0]
@@ -64,12 +80,26 @@ def group_into_ranges(hours):
     return ranges   
 
 def fmt_hour(h):
-    """Convert 0-23 hour to 12-hour format (e.g. 13 -> "01:00 PM")."""
+    """Convert a 24-hour integer format into a 12-hour AM/PM string.
+
+    Args:
+        h (int): Hour integer ranging from 0 to 23.
+
+    Returns:
+        str: Formatted 12-hour time string (e.g., '01:00 PM').
+    """
     h = h % 24
     return f"{h % 12 or 12}:00 {'AM' if h < 12 else 'PM'}"
 
 def fmt_range(r):
-    """Convert a range of hours into a readable format (e.g. (0, 2) -> "12:00 AM - 02:00 AM")."""
+    """Convert a tuple range of hours into a readable formatted string.
+
+    Args:
+        r (tuple): A tuple containing (start_hour, end_hour).
+
+    Returns:
+        str: Formatted time range string (e.g., '12:00 AM - 02:00 AM' or '10:00 AM').
+    """
 
     # unpack the tuple
     start, end = r
@@ -80,7 +110,16 @@ def fmt_range(r):
     return f"{fmt_hour(start)} - {fmt_hour(end)}"
 
 def format_window(series):
-    """Turn a time-indexed AQI series into (readable window string, avg AQI)."""
+    """Transform a time-indexed AQI series into a human-readable window string and rounded average.
+
+    Args:
+        series (pd.Series): Pandas series with time strings as index and AQI values.
+
+    Returns:
+        tuple: A tuple containing:
+            - window (str): Formatted time ranges string.
+            - avg (int): Rounded average AQI value across the window.
+    """
     hours = [datetime.strptime(t, "%I:%M %p").hour for t in series.index]
     ranges = group_into_ranges(hours)       # Group int hours into ranges (tuples)
     window = ", ".join(fmt_range(r) for r in ranges)      # Formating the hour ranges
@@ -88,10 +127,19 @@ def format_window(series):
     return window, avg
 
 def load_raw_data(offline=False):
+    """Load raw air quality data either by querying the live API or falling back to local cache.
 
+    Args:
+        offline (bool, optional): If True, bypasses network calls and loads local cache. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing:
+            - data (dict): The raw JSON dataset.
+            - fresh (bool): True if fetched live, False if loaded from offline cache.
+    """
     if not offline:
         try :
-            return fetch_and_save_data(date.today()), True
+            return fetch_and_save_data(), True
         except requests.RequestException as e :
             print(f"{Color.YELLOW}[!] API unreachable ({type(e).__name__}) \n - Falling back to cached data...{Color.RESET}\n")
     
@@ -101,10 +149,18 @@ def load_raw_data(offline=False):
     with open(DATA_PATH, 'r') as f:
         return json.load(f), False
 
-
 # ---------- Report Printer ----------
 def print_report(current, historical, patterns, hours_offset, width=None):
+    """Render and print a clean, colorized terminal report of current status, historical trends, and daily patterns.
 
+    Args:
+        current (dict): Current AQI and pollutant measurements.
+        historical (list): Historical averages and trend comparison metrics.
+        patterns (list): Safest and peak danger window series.
+        hours_offset (float): Age of cached data in hours.
+        width (int, optional): Terminal line width for layout boundaries. Defaults to None.
+    """
+    
     if width is None:
         try:
             width = int(os.get_terminal_size().columns * 0.75)

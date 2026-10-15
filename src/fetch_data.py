@@ -9,14 +9,23 @@ URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 # How much history to fetch (analysis needs max 30 days; 60 gives headroom)
 HISTORY_DAYS = 60
 
-def fetch_and_save_data(today):
+def fetch_and_save_data():
+    """Fetch historical and current hourly air quality metrics from the Open-Meteo API
+    for Lahore and cache the raw JSON response locally.
+
+    Returns:
+        dict: The raw JSON dictionary response from the API.
+
+    Raises:
+        requests.RequestException: If the network request or API call fails.
+    """
 
     # Lahore Coordinates & Parameters
     params = {
         "latitude": 31.5204,
         "longitude": 74.3587,
-        "start_date": today - timedelta(days=HISTORY_DAYS),
-        "end_date": today,
+        "start_date": date.today() - timedelta(days=HISTORY_DAYS),
+        "end_date": date.today(),
         "hourly": "pm2_5,pm10,us_aqi",
         "timezone": "Asia/Karachi"
     }

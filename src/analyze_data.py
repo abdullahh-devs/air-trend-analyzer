@@ -1,7 +1,17 @@
+from numpy.matrixlib import defmatrix
 from datetime import date, datetime, time
 
 # Defining Meaning
 def get_aqi_meaning(aqi_value):
+    """Map a numerical US AQI value to its official qualitative health category.
+
+    Args:
+        aqi_value (float or int): The US AQI numerical score.
+
+    Returns:
+        str: The qualitative air quality category (e.g., 'Good', 'Moderate', 'Hazardous').
+    """
+
     if aqi_value <= 50:
         return "Good"
     elif aqi_value <= 100:
@@ -17,6 +27,14 @@ def get_aqi_meaning(aqi_value):
 
 # Get Current Status
 def get_todays_status(df):
+    """Extract the most recent hourly AQI and pollutant records from the dataset.
+
+        Args:
+            df (pd.DataFrame): MultiIndexed DataFrame containing hourly air quality data.
+
+        Returns:
+            dict: A dictionary containing current 'aqi', 'pm2_5', 'pm10', and health 'status'.
+        """
 
     row = df.iloc[-1]   # get the latest results
 
@@ -30,6 +48,16 @@ def get_todays_status(df):
 
 # Get Historical Status
 def get_historical_status(df):
+    """Calculate rolling historical AQI averages and compare last week's trend.
+
+    Args:
+        df (pd.DataFrame): MultiIndexed DataFrame containing hourly air quality data.
+
+    Returns:
+        list: A two-element list containing:
+            - past_aqi (list): Averages for past 3, 7, and 30 days.
+            - quality (tuple): (percentage_difference, is_improved_boolean).
+    """
 
     past_aqi = [df.tail(24*i)['us_aqi'].mean().round(2) for i in [3, 7, 30]]
     last_week = df.iloc[-24*14:-24*7]['us_aqi'].mean().round(2)
@@ -46,7 +74,14 @@ def get_historical_status(df):
 
 # Pattern Insights
 def get_pattern_insights(df):
-    """This function is gonna find the safest window and the worse window in the last week for Lahore"""
+    """Identify the safest and most dangerous hourly time windows over the past week.
+
+    Args:
+        df (pd.DataFrame): MultiIndexed DataFrame containing hourly air quality data.
+
+    Returns:
+        list: A list containing two Pandas Series representing the lowest and highest AQI hours.
+    """
 
     temp = df.tail(24 * 7)['us_aqi'].groupby('time').mean().sort_values()
     lowest = temp.head(4)
